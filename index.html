@@ -56,11 +56,11 @@
   <canvas id="gc" width="480" height="540"></canvas>
   <div id="ov">
     <h2 id="ot">KICK OFF</h2>
-    <p id="om">Use <strong>arrow keys</strong> or <strong>WASD</strong> to dribble.<br>Beat the defenders and shoot into the goal!</p>
+    <p id="om">Use <strong>arrow keys</strong> or <strong>WASD</strong> to dribble.<br>Press <strong>SPACE</strong> to shoot from anywhere!<br>Watch out for the goalkeeper!</p>
     <div id="fs"></div>
     <button id="btn">PLAY</button>
   </div>
-  <div class="hint">← → ↑ ↓ &nbsp;|&nbsp; WASD &nbsp;|&nbsp; TOUCH</div>
+  <div class="hint">← → ↑ ↓ &nbsp;|&nbsp; WASD &nbsp;|&nbsp; SPACE to shoot &nbsp;|&nbsp; TOUCH</div>
 </div>
 
 <script>
@@ -82,9 +82,10 @@
   const GX = W/2 - GW/2, GY = 28;
   const PR = 13, PSPD = 4.2;
   const DCOL = '#cc2200';
+  const KEEPER_HALF = GW/2 - 14; // keeper swing radius
 
   // ── State ──────────────────────────────────
-  let mode = 'idle'; // idle | play | dead
+  let mode = 'idle';
   let goals = 0, best = 0;
   let defSpd = 0.9;
   let raf = 0;
@@ -93,24 +94,33 @@
   let bx, by, bang;
   let defenders;
   let scrollOff, fieldY;
-  let shooting, sx, sy, sspin;
+
+  // Shooting state: 'none' | 'flying' | 'blocked' | 'loose'
+  let shotState;
+  let sx, sy, sspin;   // flying ball pos
+  let looseBx, loseBy, looseDx, looseDy; // loose ball after block
+  let inShootZone;     // player is in shoot zone, show prompt
+
   let gFlash, gScored;
+  let blockFlash;      // brief red flash on block
   let parts;
 
   // ── Input ──────────────────────────────────
   const K = {};
   document.addEventListener('keydown', e => {
     K[e.key] = true;
-    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
   });
   document.addEventListener('keyup', e => { K[e.key] = false; });
 
   let tx = null, ty = null;
+  let tapped = false;
   canvas.addEventListener('touchstart', e => {
     e.preventDefault();
     const t = e.touches[0], r = canvas.getBoundingClientRect();
     tx = (t.clientX - r.left) * (W / r.width);
     ty = (t.clientY - r.top)  * (H / r.height);
+    tapped = true;
   }, {passive:false});
   canvas.addEventListener('touchmove', e => {
     e.preventDefault();
@@ -119,6 +129,11 @@
     ty = (t.clientY - r.top)  * (H / r.height);
   }, {passive:false});
   canvas.addEventListener('touchend', () => { tx = null; ty = null; });
+
+  // ── Keeper helper ──────────────────────────
+  function keeperX() {
+    return W/2 + Math.sin(Date.now()/1000 * (0.9 + goals*0.08)) * KEEPER_HALF;
+  }
 
   // ── Setup ──────────────────────────────────
   function resetPlayer() {
@@ -142,13 +157,16 @@
   }
 
   function init() {
-    defSpd   = 0.9;
-    goals    = 0;
+    defSpd    = 0.9;
+    goals     = 0;
     scrollOff = 0; fieldY = 0;
-    gFlash   = 0; gScored = false;
-    shooting = false;
-    parts    = [];
-    shimmer  = 0;
+    gFlash    = 0; gScored = false;
+    blockFlash = 0;
+    shotState = 'none';
+    inShootZone = false;
+    parts     = [];
+    shimmer   = 0;
+    tapped    = false;
     resetPlayer();
     defenders = [0,1,2].map(mkDef);
     updateUI();
@@ -159,6 +177,14 @@
     bdEl.textContent = best;
   }
 
+  // ── Shoot ──────────────────────────────────
+  function shoot() {
+    if (shotState !== 'none' || gScored) return;
+    if (!inShootZone) return;
+    shotState = 'flying';
+    sx = px; sy = by; sspin = bang;
+  }
+
   // ── Drawing ────────────────────────────────
   function drawField() {
     const sh = 60, off = scrollOff % (sh*2);
@@ -166,11 +192,9 @@
       ctx.fillStyle = '#2d8a3e'; ctx.fillRect(0, y, W, sh);
       ctx.fillStyle = '#2a7d38'; ctx.fillRect(0, y+sh, W, sh);
     }
-    // Sidelines
     ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(22,0);   ctx.lineTo(22,H);   ctx.stroke();
     ctx.beginPath(); ctx.moveTo(W-22,0); ctx.lineTo(W-22,H); ctx.stroke();
-    // Centre circle
     const cy = H-80 - fieldY*0.8;
     if (cy > -80 && cy < H+80) {
       ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=1.5;
@@ -179,7 +203,6 @@
       ctx.fillStyle='rgba(255,255,255,0.35)';
       ctx.beginPath(); ctx.arc(W/2,cy,3,0,Math.PI*2); ctx.fill();
     }
-    // Penalty box
     ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=1.5;
     ctx.strokeRect(W/2-90, GY+GH, 180, 80);
     ctx.strokeRect(W/2-50, GY+GH, 100, 34);
@@ -202,8 +225,7 @@
   }
 
   function drawKeeper() {
-    const t = Date.now()/1000;
-    const kx = W/2 + Math.sin(t*(0.9+goals*0.08)) * (GW/2-14);
+    const kx = keeperX();
     const ky = GY+GH-2;
     ctx.fillStyle='rgba(0,0,0,0.18)';
     ctx.beginPath(); ctx.ellipse(kx,ky+13,12,4,0,0,Math.PI*2); ctx.fill();
@@ -214,6 +236,17 @@
     ctx.strokeStyle='#f5c518'; ctx.lineWidth=5; ctx.lineCap='round';
     ctx.beginPath(); ctx.moveTo(kx-10,ky-10); ctx.lineTo(kx-22,ky-18); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(kx+10,ky-10); ctx.lineTo(kx+22,ky-18); ctx.stroke();
+  }
+
+  function drawShootPrompt() {
+    if (shotState !== 'none' || gScored) return;
+    ctx.save();
+    ctx.globalAlpha = 0.75 + Math.sin(Date.now()/200)*0.25;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 13px Barlow Condensed,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('SPACE / TAP to shoot', W/2, py - PR - 22);
+    ctx.restore();
   }
 
   function drawPlayer() {
@@ -267,7 +300,7 @@
     ctx.globalAlpha=1;
   }
 
-  function spawnParts() {
+  function spawnGoalParts() {
     ['#f5c518','#38a84e','#ffffff','#ffdd44','#f0f0e8'].forEach(color=>{
       for (let i=0;i<12;i++){
         const a=Math.random()*Math.PI*2, spd=2+Math.random()*5;
@@ -278,17 +311,30 @@
   }
 
   function drawFlash() {
-    if (gFlash<=0) return;
-    ctx.fillStyle=`rgba(56,168,78,${gFlash*0.32})`; ctx.fillRect(0,0,W,H);
-    if (gFlash>0.5){
-      ctx.font='bold 62px Bebas Neue,sans-serif'; ctx.textAlign='center';
-      ctx.fillStyle=`rgba(255,255,255,${(gFlash-0.5)*2})`;
-      ctx.fillText('GOAL!',W/2,H/2-10);
-      ctx.font='600 22px Barlow Condensed,sans-serif';
-      ctx.fillStyle=`rgba(245,197,24,${(gFlash-0.5)*2})`;
-      ctx.fillText(`GOAL ${goals}`,W/2,H/2+28);
+    if (gFlash>0){
+      ctx.fillStyle=`rgba(56,168,78,${gFlash*0.32})`; ctx.fillRect(0,0,W,H);
+      if (gFlash>0.5){
+        ctx.font='bold 62px Bebas Neue,sans-serif'; ctx.textAlign='center';
+        ctx.fillStyle=`rgba(255,255,255,${(gFlash-0.5)*2})`;
+        ctx.fillText('GOAL!',W/2,H/2-10);
+        ctx.font='600 22px Barlow Condensed,sans-serif';
+        ctx.fillStyle=`rgba(245,197,24,${(gFlash-0.5)*2})`;
+        ctx.fillText(`GOAL ${goals}`,W/2,H/2+28);
+      }
+      gFlash -= 0.022;
     }
-    gFlash -= 0.022;
+    if (blockFlash>0){
+      ctx.fillStyle=`rgba(220,50,0,${blockFlash*0.28})`; ctx.fillRect(0,0,W,H);
+      if (blockFlash>0.5){
+        ctx.font='bold 52px Bebas Neue,sans-serif'; ctx.textAlign='center';
+        ctx.fillStyle=`rgba(255,255,255,${(blockFlash-0.5)*2})`;
+        ctx.fillText('BLOCKED!',W/2,H/2-10);
+        ctx.font='600 18px Barlow Condensed,sans-serif';
+        ctx.fillStyle=`rgba(255,200,80,${(blockFlash-0.5)*2})`;
+        ctx.fillText('Get the ball back!',W/2,H/2+24);
+      }
+      blockFlash -= 0.028;
+    }
   }
 
   function drawHUD() {
@@ -303,24 +349,86 @@
   function update() {
     if (mode !== 'play') return;
 
-    // Shoot animation
-    if (shooting) {
+    // ── Always move defenders (no matter what shot state) ──
+    defenders.forEach(d=>{
+      d.x+=d.dx; d.y+=d.dy; d.anim+=0.06;
+      if (d.x<=d.x0||d.x>=d.x1){ d.dx*=-1; d.x=Math.max(d.x0,Math.min(d.x1,d.x)); }
+      if (d.y<=d.y0||d.y>=d.y1){ d.dy*=-1; d.y=Math.max(d.y0,Math.min(d.y1,d.y)); }
+    });
+
+    // ── Flying ball ──
+    if (shotState === 'flying') {
       sy -= 9; sspin += 0.4;
-      if (sy < GY+GH+4 && sy > GY-4 && sx > GX+6 && sx < GX+GW-6) {
-        // GOAL!
-        goals++; if (goals>best) best=goals;
-        gFlash=1.0; gScored=true; shooting=false;
-        defSpd += 0.12;
-        spawnParts(); updateUI();
-        setTimeout(nextRound, 2000);
-      } else if (sy < GY-14) {
-        // Missed
-        shooting = false;
+
+      // Check if any defender blocks the flying ball
+      for (const d of defenders) {
+        const bdx = sx - d.x, bdy = sy - d.y;
+        if (Math.sqrt(bdx*bdx + bdy*bdy) < 18) {
+          // Defender blocks the shot - ball bounces off them loosely
+          shotState = 'loose';
+          looseBx = sx;
+          loseBy  = sy;
+          looseDx = (sx - d.x) * 0.2 + (Math.random()-0.5)*3;
+          looseDy = 2 + Math.random()*2; // bounces downward toward player
+          blockFlash = 1.0;
+          return;
+        }
       }
-      return;
+
+      // Has ball reached goal line area?
+      if (sy <= GY+GH+4) {
+        const kx = keeperX();
+        const ballInGoal = sx > GX+6 && sx < GX+GW-6;
+        const keeperReach = 22;
+        const blocked = ballInGoal && Math.abs(sx - kx) < keeperReach;
+
+        if (blocked) {
+          shotState = 'loose';
+          looseBx = sx;
+          loseBy  = GY + GH + 10;
+          looseDx = (sx - kx) * 0.18 + (Math.random()-0.5)*2;
+          looseDy = 3 + Math.random()*2;
+          blockFlash = 1.0;
+        } else if (ballInGoal) {
+          // GOAL!
+          goals++; if (goals>best) best=goals;
+          gFlash=1.0; gScored=true; shotState='none';
+          defSpd += 0.25;
+          spawnGoalParts(); updateUI();
+          setTimeout(nextRound, 2000);
+        } else {
+          // Wide/high - ball gone, reset to player
+          shotState = 'none';
+          bx = px+18; by = py+8;
+        }
+      } else if (sy < GY-14) {
+        shotState = 'none';
+        bx = px+18; by = py+8;
+      }
+      return; // skip player movement while ball is flying
     }
 
-    // Input
+    // ── Loose ball after block ──
+    if (shotState === 'loose') {
+      looseBx += looseDx;
+      loseBy  += looseDy;
+      looseDy += 0.2;
+      looseDx *= 0.97;
+      if (looseBx < 30 || looseBx > W-30) looseDx *= -1;
+      // Player picks up loose ball
+      const pdx = px - looseBx, pdy = py - loseBy;
+      if (Math.sqrt(pdx*pdx+pdy*pdy) < PR+10) {
+        shotState = 'none';
+        bx = looseBx; by = loseBy;
+      }
+      // Ball scrolls off bottom - reset to player
+      if (loseBy > H+20) {
+        shotState = 'none';
+        bx = px+18; by = py+8;
+      }
+    }
+
+    // ── Player movement ──
     let mdx=0, mdy=0;
     if (K['ArrowLeft'] ||K['a']||K['A']) mdx-=1;
     if (K['ArrowRight']||K['d']||K['D']) mdx+=1;
@@ -336,32 +444,31 @@
     px = Math.max(34, Math.min(W-34, px+mdx*PSPD));
     py = Math.max(20, Math.min(H-20, py+mdy*PSPD));
 
-    // Ball follows
-    bx += (px+18-bx)*0.35;
-    by += (py+8 -by)*0.35;
-    if (moving) bang += mdx*0.18 + Math.abs(mdy)*0.12;
+    // Ball follows player (only when not loose)
+    if (shotState !== 'loose') {
+      bx += (px+18-bx)*0.35;
+      by += (py+8 -by)*0.35;
+      if (moving) bang += mdx*0.18 + Math.abs(mdy)*0.12;
+    }
 
     // Scroll
     if (py < H*0.42){
       const spd=(H*0.42-py)*0.09;
       scrollOff+=spd; fieldY+=spd; py+=spd*0.55;
       defenders.forEach(d=>{ d.y+=spd; d.y0+=spd; d.y1+=spd; });
+      if (shotState==='loose') loseBy+=spd;
     }
 
-    // Auto-shoot near goal
-    if (!gScored && py<160 && fieldY>80){
-      shooting=true; sx=px; sy=by; sspin=bang;
-      return;
+    // Shoot zone = anywhere (just not while a goal celebration is happening)
+    inShootZone = !gScored;
+
+    // Spacebar or tap to shoot
+    if ((K[' '] || tapped) && shotState === 'none' && !gScored) {
+      shoot();
     }
+    tapped = false;
 
-    // Move defenders – bounce in patrol box
-    defenders.forEach(d=>{
-      d.x+=d.dx; d.y+=d.dy; d.anim+=0.06;
-      if (d.x<=d.x0||d.x>=d.x1){ d.dx*=-1; d.x=Math.max(d.x0,Math.min(d.x1,d.x)); }
-      if (d.y<=d.y0||d.y>=d.y1){ d.dy*=-1; d.y=Math.max(d.y0,Math.min(d.y1,d.y)); }
-    });
-
-    // Collision
+    // ── Collision ──
     for (const d of defenders){
       const ex=px-d.x, ey=py-d.y;
       if (Math.sqrt(ex*ex+ey*ey)<PR+13){ gameOver(); return; }
@@ -369,21 +476,18 @@
   }
 
   function nextRound(){
-    gScored=false; gFlash=0; shooting=false;
-    scrollOff=0; fieldY=0;
+    gScored=false; gFlash=0; shotState='none'; blockFlash=0;
+    scrollOff=0; fieldY=0; inShootZone=false;
     resetPlayer();
-    // Defenders stay on field – nudge patrol zones back onto screen and bump speed
     defenders.forEach(d=>{
       const hh=68;
-      // If patrol zone has drifted off screen, recentre vertically
       if (d.y1>H-40 || d.y0<60){
         const midY = H*0.3 + Math.random()*H*0.25;
         d.y0=midY-hh; d.y1=midY+hh;
         d.y=Math.max(d.y0,Math.min(d.y1,d.y));
       }
-      // Apply new speed
       const sign=d.dy>=0?1:-1;
-      d.dy=sign*Math.min(Math.abs(d.dy)+0.05, 3.5);
+      d.dy=sign*Math.min(Math.abs(d.dy)+0.1, 4.0);
     });
   }
 
@@ -402,7 +506,19 @@
     drawField(); drawGoal();
     if (!gScored) drawKeeper();
     defenders.forEach(drawDef);
-    if (shooting){ drawBall(sx,sy,sspin); } else { drawBall(bx,by,bang); }
+
+    // Draw ball depending on state
+    if (shotState==='flying') {
+      drawBall(sx,sy,sspin);
+      drawBall(bx,by,bang); // ball still on player during shot illusion - hide it
+    } else if (shotState==='loose') {
+      drawBall(looseBx,loseBy,bang);
+      // no ball on player
+    } else {
+      drawBall(bx,by,bang);
+    }
+
+    drawShootPrompt();
     drawPlayer(); drawParts(); drawFlash(); drawHUD();
     raf=requestAnimationFrame(loop);
   }
