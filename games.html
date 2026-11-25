@@ -119,7 +119,7 @@ h1 span { color: var(--green); text-shadow: 3px 3px 0 #0a4a14; }
 }
 
 @media (min-width: 780px) {
-  .games { flex-direction: row; max-width: 920px; }
+  .games { flex-direction: row; max-width: 480px; }
   .card  { flex: 1; }
 }
 
@@ -239,42 +239,6 @@ footer {
     </div>
   </a>
 
-  <a class="card match" href="full_field.html">
-    <div class="preview">
-      <canvas id="c1" width="440" height="130"></canvas>
-      <div class="mode-tag">7 VS 7</div>
-    </div>
-    <div class="card-body">
-      <div class="card-title">FULL MATCH</div>
-      <p class="card-desc">Two 45-second halves of 7v7. Build up play, switch players, sprint past defenders, and find the net. Full AI, corner kicks, and set pieces.</p>
-      <div class="card-tags">
-        <span class="tag">7 VS 7</span>
-        <span class="tag">KEYBOARD</span>
-        <span class="tag">TOUCH</span>
-        <span class="tag">SPRINT</span>
-        <span class="tag">CORNERS</span>
-      </div>
-      <span class="play-btn">▶ KICK OFF</span>
-    </div>
-  </a>
-
-  <a class="card dribble" href="dribble-challenge.html">
-    <div class="preview">
-      <canvas id="c2" width="440" height="130"></canvas>
-      <div class="mode-tag">CHALLENGE</div>
-    </div>
-    <div class="card-body">
-      <div class="card-title">DRIBBLE &amp; SCORE</div>
-      <p class="card-desc">Solo score-attack. Dribble past the keeper and bag as many goals as you can. Simple controls, pure arcade feel — beat your best.</p>
-      <div class="card-tags">
-        <span class="tag">1 PLAYER</span>
-        <span class="tag">SCORE ATTACK</span>
-        <span class="tag">ARCADE</span>
-        <span class="tag">TOUCH</span>
-      </div>
-      <span class="play-btn">▶ PLAY</span>
-    </div>
-  </a>
 
 </div>
 
@@ -282,143 +246,6 @@ footer {
 
 <script>
 (function() {
-
-  /* ── MATCH PREVIEW (c1) ── */
-  var c1 = document.getElementById('c1');
-  var x1 = c1.getContext('2d');
-  var W1 = c1.width, H1 = c1.height;
-
-  var dots = [
-    {x:0.12,y:0.50,c:'#3355ee',t:0.00},
-    {x:0.26,y:0.28,c:'#3355ee',t:0.30},
-    {x:0.26,y:0.72,c:'#3355ee',t:0.55},
-    {x:0.38,y:0.40,c:'#3355ee',t:0.80},
-    {x:0.38,y:0.62,c:'#3355ee',t:1.10},
-    {x:0.50,y:0.34,c:'#3355ee',t:0.20},
-    {x:0.50,y:0.66,c:'#3355ee',t:0.60},
-    {x:0.88,y:0.50,c:'#cc3333',t:0.10},
-    {x:0.74,y:0.28,c:'#cc3333',t:0.40},
-    {x:0.74,y:0.72,c:'#cc3333',t:0.70},
-    {x:0.62,y:0.40,c:'#cc3333',t:0.90},
-    {x:0.62,y:0.62,c:'#cc3333',t:1.20},
-    {x:0.50,y:0.44,c:'#cc3333',t:0.15},
-    {x:0.50,y:0.56,c:'#cc3333',t:0.85},
-  ];
-  var ball = {x:0.49, y:0.49, vx:0.0018, vy:0.0008};
-  var t1 = 0;
-
-  function drawField1() {
-    for (var i=0;i<4;i++) {
-      x1.fillStyle = i%2===0 ? '#0f2212' : '#112514';
-      x1.fillRect(i*W1/4, 0, W1/4, H1);
-    }
-    x1.strokeStyle = 'rgba(255,255,255,0.13)'; x1.lineWidth = 1;
-    x1.beginPath(); x1.moveTo(W1/2,0); x1.lineTo(W1/2,H1); x1.stroke();
-    x1.beginPath(); x1.arc(W1/2, H1/2, H1*0.22, 0, Math.PI*2); x1.stroke();
-    x1.strokeStyle = 'rgba(255,255,255,0.2)'; x1.lineWidth = 2;
-    var gh = H1*0.30, gy = (H1-gh)/2;
-    x1.strokeRect(0, gy, 8, gh);
-    x1.strokeRect(W1-8, gy, 8, gh);
-  }
-
-  function frame1() {
-    t1 += 0.018;
-    x1.clearRect(0,0,W1,H1);
-    drawField1();
-    ball.x += ball.vx;
-    ball.y += ball.vy + Math.sin(t1*0.5)*0.0004;
-    if (ball.x < 0.04 || ball.x > 0.96) ball.vx *= -1;
-    if (ball.y < 0.06 || ball.y > 0.94) ball.vy *= -1;
-    dots.forEach(function(d) {
-      var px = Math.round((d.x + Math.sin(t1+d.t)*0.04)*W1);
-      var py = Math.round((d.y + Math.cos(t1*0.8+d.t)*0.03)*H1);
-      x1.fillStyle = 'rgba(0,0,0,0.35)';
-      x1.fillRect(px-3, py+4, 8, 2);
-      x1.fillStyle = d.c;
-      x1.fillRect(px-4, py-4, 8, 8);
-    });
-    var bx = Math.round(ball.x*W1), by = Math.round(ball.y*H1);
-    x1.fillStyle='#222'; x1.fillRect(bx-5,by-5,10,10);
-    x1.fillStyle='#eeeecc'; x1.fillRect(bx-4,by-4,8,8);
-    x1.fillStyle='#333';
-    x1.fillRect(bx-2,by-2,3,3); x1.fillRect(bx+1,by-2,2,3);
-    x1.fillRect(bx-2,by+1,3,2); x1.fillRect(bx+1,by+1,2,2);
-    requestAnimationFrame(frame1);
-  }
-  frame1();
-
-  /* ── DRIBBLE PREVIEW (c2) ── */
-  var c2 = document.getElementById('c2');
-  var x2 = c2.getContext('2d');
-  var W2 = c2.width, H2 = c2.height;
-
-  var px2=0.12, py2=0.50;
-  var gkY=0.50, gkDir=1;
-  var scored=false, flash=0;
-  var t2=0;
-
-  function drawField2() {
-    for (var i=0;i<4;i++) {
-      x2.fillStyle = i%2===0 ? '#0a1a0c':'#0c1e0e';
-      x2.fillRect(i*W2/4, 0, W2/4, H2);
-    }
-    var gh=H2*0.32, gy=(H2-gh)/2;
-    x2.strokeStyle='rgba(255,255,255,0.22)'; x2.lineWidth=2;
-    x2.strokeRect(W2-10, gy, 10, gh);
-    x2.strokeStyle='rgba(255,255,255,0.07)'; x2.lineWidth=1;
-    for (var nx=W2-9; nx<=W2; nx+=4) {
-      x2.beginPath(); x2.moveTo(nx,gy); x2.lineTo(nx,gy+gh); x2.stroke();
-    }
-  }
-
-  function frame2() {
-    t2 += 0.022;
-    x2.clearRect(0,0,W2,H2);
-    drawField2();
-
-    if (!scored) {
-      px2 += 0.003;
-      py2 = 0.50 + Math.sin(t2*1.1)*0.20;
-      if (px2 > 0.90) { scored=true; flash=45; px2=0.12; py2=0.50; }
-    }
-
-    gkY += gkDir * 0.013;
-    if (gkY > 0.72 || gkY < 0.28) gkDir *= -1;
-
-    if (flash > 0) {
-      flash--;
-      x2.fillStyle = 'rgba(245,197,24,'+(flash/45*0.35)+')';
-      x2.fillRect(0,0,W2,H2);
-      x2.textAlign='center';
-      x2.font = 'bold 11px "Press Start 2P",monospace';
-      x2.fillStyle = 'rgba(0,0,0,'+(flash/45)+')';
-      x2.fillText('GOAL!', W2/2+2, H2/2+6);
-      x2.fillStyle = 'rgba(245,197,24,'+(flash/45)+')';
-      x2.fillText('GOAL!', W2/2, H2/2+4);
-    }
-
-    /* Player */
-    var ppx=Math.round(px2*W2), ppy=Math.round(py2*H2);
-    x2.fillStyle='rgba(0,0,0,0.3)'; x2.fillRect(ppx-4,ppy+5,9,2);
-    x2.fillStyle='#1a3aff'; x2.fillRect(ppx-5,ppy-5,10,10);
-    x2.fillStyle='#eee'; x2.fillRect(ppx-2,ppy-8,5,4);
-
-    /* Ball just ahead */
-    var bpx=ppx+11, bpy=ppy;
-    x2.fillStyle='#222'; x2.fillRect(bpx-4,bpy-4,8,8);
-    x2.fillStyle='#eeeecc'; x2.fillRect(bpx-3,bpy-3,6,6);
-
-    /* Keeper */
-    var gkpx=Math.round(gkX2()*W2), gkppy=Math.round(gkY*H2);
-    x2.fillStyle='rgba(0,0,0,0.3)'; x2.fillRect(gkpx-4,gkppy+5,9,2);
-    x2.fillStyle='#f0c000'; x2.fillRect(gkpx-5,gkppy-5,10,10);
-    x2.fillStyle='#7a4a00'; x2.fillRect(gkpx-2,gkppy-8,5,4);
-
-    requestAnimationFrame(frame2);
-  }
-  function gkX2() { return 0.82; }
-  frame2();
-
 
   /* ── TOP BINS PREVIEW (c3) ── */
   (function(){
