@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Cascadia Football</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Barlow+Condensed:wght@300;400;600;700&display=swap');
+
+:root {
+  --green: #38a84e;
+  --dark:  #05090a;
+  --panel: #0a1210;
+  --gold:  #f5c518;
+  --red:   #cc1a1a;
+  --blue:  #1a3aff;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  min-height: 100vh;
+  background: var(--dark);
+  font-family: 'Press Start 2P', monospace;
+  color: #e0ede2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-x: hidden;
+}
+
+/* Scanline overlay */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px, transparent 3px,
+    rgba(0,0,0,0.12) 3px, rgba(0,0,0,0.12) 4px
+  );
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* Pitch stripe background */
+.bg-pitch {
+  position: fixed; inset: 0; z-index: 0;
+  background: repeating-linear-gradient(
+    180deg,
+    #060d08 0px, #060d08 60px,
+    #070f09 60px, #070f09 120px
+  );
+}
+
+/* ── HEADER ── */
+header {
+  position: relative; z-index: 1;
+  width: 100%;
+  text-align: center;
+  padding: 48px 20px 0;
+  animation: fadeDown 0.5s ease both;
+}
+
+.pixel-ball {
+  display: inline-block;
+  width: 24px; height: 24px;
+  background: #eee;
+  margin-bottom: 10px;
+  box-shadow:
+    -4px -4px 0 #333,
+     4px -4px 0 #333,
+    -4px  4px 0 #333,
+     4px  4px 0 #333;
+  animation: spin 4s steps(4) infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+h1 {
+  font-size: clamp(0.9rem, 4vw, 1.3rem);
+  letter-spacing: 4px;
+  line-height: 1.8;
+  color: var(--gold);
+  text-shadow: 3px 3px 0 #7a5a00;
+}
+h1 span { color: var(--green); text-shadow: 3px 3px 0 #0a4a14; }
+
+.subtitle {
+  margin-top: 10px;
+  font-size: 0.28rem;
+  letter-spacing: 3px;
+  color: #556655;
+}
+.blink { animation: blink 1s step-end infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ── DIVIDER ── */
+.divider {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 500px;
+  margin: 28px auto;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 20px;
+}
+.divider::before, .divider::after {
+  content: ''; flex: 1; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--green), transparent);
+}
+.divider span { font-size: 0.3rem; color: var(--green); white-space: nowrap; letter-spacing: 2px; }
+
+/* ── CARDS ── */
+.games {
+  position: relative; z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%; max-width: 480px;
+  padding: 0 16px;
+  animation: fadeUp 0.6s 0.15s ease both;
+}
+
+@media (min-width: 780px) {
+  .games { flex-direction: row; max-width: 920px; }
+  .card  { flex: 1; }
+}
+
+.card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  background: var(--panel);
+  border: 3px solid #1e3020;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.15s;
+}
+.card:hover  { border-color: var(--green); transform: translateY(-4px); }
+.card:active { transform: translateY(-1px); }
+
+.card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 4px;
+}
+.card.match::before   { background: linear-gradient(90deg, var(--blue), #7799ff); }
+.card.dribble::before { background: linear-gradient(90deg, var(--gold), #ffe066); }
+
+.preview {
+  width: 100%; height: 130px;
+  position: relative; overflow: hidden;
+}
+.preview canvas { display: block; width: 100%; height: 100%; }
+
+.mode-tag {
+  position: absolute; top: 10px; right: 10px;
+  font-size: 0.22rem; letter-spacing: 2px;
+  padding: 3px 8px; border: 2px solid;
+}
+.card.match   .mode-tag { color: #7799ff; border-color: #7799ff; background: rgba(26,58,255,0.15); }
+.card.dribble .mode-tag { color: var(--gold); border-color: var(--gold); background: rgba(245,197,24,0.12); }
+
+.card-body { padding: 18px 18px 22px; }
+
+.card-title {
+  font-size: 0.55rem; letter-spacing: 2px;
+  margin-bottom: 10px; line-height: 1.5;
+}
+.card.match   .card-title { color: #aabbff; }
+.card.dribble .card-title { color: var(--gold); }
+
+.card-desc {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.95rem; line-height: 1.6;
+  color: #7a9a7a; margin-bottom: 18px;
+}
+
+.card-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+.tag {
+  font-size: 0.2rem; letter-spacing: 1px;
+  padding: 2px 7px;
+  border: 1px solid #2a3a2a; color: #4a6a4a;
+}
+
+.play-btn {
+  display: inline-block;
+  padding: 10px 20px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.38rem; letter-spacing: 2px;
+  border: 3px solid; cursor: pointer;
+  transition: filter 0.15s;
+}
+.card.match   .play-btn { background: var(--blue);  border-color: #7799ff; color: #fff; box-shadow: 4px 4px 0 #0a1a66; }
+.card.dribble .play-btn { background: #996600;       border-color: var(--gold); color: #fff; box-shadow: 4px 4px 0 #4a3000; }
+.card.topbins::before { background: linear-gradient(90deg, #5ff2ff, #ffd23f); }
+.card.topbins .mode-tag { color: #5ff2ff; border-color: #5ff2ff; background: rgba(95,242,255,0.12); }
+.card.topbins .card-title { color: #5ff2ff; }
+.card.topbins .play-btn { background: #0b6f80; border-color: #5ff2ff; color: #fff; box-shadow: 4px 4px 0 #04333b; }
+.play-btn:hover { filter: brightness(1.3); }
+
+footer {
+  position: relative; z-index: 1;
+  margin: 44px 0 28px;
+  font-size: 0.22rem; color: #2a3a2a;
+  letter-spacing: 3px; text-align: center;
+  animation: fadeUp 0.6s 0.3s ease both;
+}
+
+@keyframes fadeDown { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:translateY(0); } }
+@keyframes fadeUp   { from { opacity:0; transform:translateY(16px);  } to { opacity:1; transform:translateY(0); } }
+</style>
+</head>
+<body>
+
+<div class="bg-pitch"></div>
+
+<header>
+  <div class="pixel-ball"></div>
+  <h1>CASCADIA<br><span>FOOTBALL</span></h1>
+  <p class="subtitle">SELECT A GAME <span class="blink">▮</span></p>
+</header>
+
+<div class="divider"><span>▶ &nbsp; ARCADE GAMES &nbsp; ◀</span></div>
+
+<div class="games">
+
+    <a class="card topbins" href="top-bins.html">
+    <div class="preview">
+      <canvas id="c3" width="440" height="130"></canvas>
+      <div class="mode-tag">NEW</div>
+    </div>
+    <div class="card-body">
+      <div class="card-title">TOP BINS</div>
+      <p class="card-desc">Night-match free kicks. Swipe to shoot, curve your swipe to bend it round the wall, and beat a diving keeper. Slow-mo finishes and instant replays.</p>
+      <div class="card-tags">
+        <span class="tag">1 PLAYER</span>
+        <span class="tag">SWIPE</span>
+        <span class="tag">FREE KICKS</span>
+        <span class="tag">REPLAYS</span>
+      </div>
+      <span class="play-btn">▶ STEP UP</span>
+    </div>
+  </a>
+
+  <a class="card match" href="full_field.html">
+    <div class="preview">
+      <canvas id="c1" width="440" height="130"></canvas>
+      <div class="mode-tag">7 VS 7</div>
+    </div>
+    <div class="card-body">
+      <div class="card-title">FULL MATCH</div>
+      <p class="card-desc">Two 45-second halves of 7v7. Build up play, switch players, sprint past defenders, and find the net. Full AI, corner kicks, and set pieces.</p>
+      <div class="card-tags">
+        <span class="tag">7 VS 7</span>
+        <span class="tag">KEYBOARD</span>
+        <span class="tag">TOUCH</span>
+        <span class="tag">SPRINT</span>
+        <span class="tag">CORNERS</span>
+      </div>
+      <span class="play-btn">▶ KICK OFF</span>
+    </div>
+  </a>
+
+  <a class="card dribble" href="dribble-challenge.html">
+    <div class="preview">
+      <canvas id="c2" width="440" height="130"></canvas>
+      <div class="mode-tag">CHALLENGE</div>
+    </div>
+    <div class="card-body">
+      <div class="card-title">DRIBBLE &amp; SCORE</div>
+      <p class="card-desc">Solo score-attack. Dribble past the keeper and bag as many goals as you can. Simple controls, pure arcade feel — beat your best.</p>
+      <div class="card-tags">
+        <span class="tag">1 PLAYER</span>
+        <span class="tag">SCORE ATTACK</span>
+        <span class="tag">ARCADE</span>
+        <span class="tag">TOUCH</span>
+      </div>
+      <span class="play-btn">▶ PLAY</span>
+    </div>
+  </a>
+
+</div>
+
+<footer>CASCADIA FOOTBALL &mdash; ARCADE EDITION</footer>
+
+<script>
+(function() {
+
+  /* ── MATCH PREVIEW (c1) ── */
+  var c1 = document.getElementById('c1');
+  var x1 = c1.getContext('2d');
+  var W1 = c1.width, H1 = c1.height;
+
+  var dots = [
+    {x:0.12,y:0.50,c:'#3355ee',t:0.00},
+    {x:0.26,y:0.28,c:'#3355ee',t:0.30},
+    {x:0.26,y:0.72,c:'#3355ee',t:0.55},
+    {x:0.38,y:0.40,c:'#3355ee',t:0.80},
+    {x:0.38,y:0.62,c:'#3355ee',t:1.10},
+    {x:0.50,y:0.34,c:'#3355ee',t:0.20},
+    {x:0.50,y:0.66,c:'#3355ee',t:0.60},
+    {x:0.88,y:0.50,c:'#cc3333',t:0.10},
+    {x:0.74,y:0.28,c:'#cc3333',t:0.40},
+    {x:0.74,y:0.72,c:'#cc3333',t:0.70},
+    {x:0.62,y:0.40,c:'#cc3333',t:0.90},
+    {x:0.62,y:0.62,c:'#cc3333',t:1.20},
+    {x:0.50,y:0.44,c:'#cc3333',t:0.15},
+    {x:0.50,y:0.56,c:'#cc3333',t:0.85},
+  ];
+  var ball = {x:0.49, y:0.49, vx:0.0018, vy:0.0008};
+  var t1 = 0;
+
+  function drawField1() {
+    for (var i=0;i<4;i++) {
+      x1.fillStyle = i%2===0 ? '#0f2212' : '#112514';
+      x1.fillRect(i*W1/4, 0, W1/4, H1);
+    }
+    x1.strokeStyle = 'rgba(255,255,255,0.13)'; x1.lineWidth = 1;
+    x1.beginPath(); x1.moveTo(W1/2,0); x1.lineTo(W1/2,H1); x1.stroke();
+    x1.beginPath(); x1.arc(W1/2, H1/2, H1*0.22, 0, Math.PI*2); x1.stroke();
+    x1.strokeStyle = 'rgba(255,255,255,0.2)'; x1.lineWidth = 2;
+    var gh = H1*0.30, gy = (H1-gh)/2;
+    x1.strokeRect(0, gy, 8, gh);
+    x1.strokeRect(W1-8, gy, 8, gh);
+  }
+
+  function frame1() {
+    t1 += 0.018;
+    x1.clearRect(0,0,W1,H1);
+    drawField1();
+    ball.x += ball.vx;
+    ball.y += ball.vy + Math.sin(t1*0.5)*0.0004;
+    if (ball.x < 0.04 || ball.x > 0.96) ball.vx *= -1;
+    if (ball.y < 0.06 || ball.y > 0.94) ball.vy *= -1;
+    dots.forEach(function(d) {
+      var px = Math.round((d.x + Math.sin(t1+d.t)*0.04)*W1);
+      var py = Math.round((d.y + Math.cos(t1*0.8+d.t)*0.03)*H1);
+      x1.fillStyle = 'rgba(0,0,0,0.35)';
+      x1.fillRect(px-3, py+4, 8, 2);
+      x1.fillStyle = d.c;
+      x1.fillRect(px-4, py-4, 8, 8);
+    });
+    var bx = Math.round(ball.x*W1), by = Math.round(ball.y*H1);
+    x1.fillStyle='#222'; x1.fillRect(bx-5,by-5,10,10);
+    x1.fillStyle='#eeeecc'; x1.fillRect(bx-4,by-4,8,8);
+    x1.fillStyle='#333';
+    x1.fillRect(bx-2,by-2,3,3); x1.fillRect(bx+1,by-2,2,3);
+    x1.fillRect(bx-2,by+1,3,2); x1.fillRect(bx+1,by+1,2,2);
+    requestAnimationFrame(frame1);
+  }
+  frame1();
+
+  /* ── DRIBBLE PREVIEW (c2) ── */
+  var c2 = document.getElementById('c2');
+  var x2 = c2.getContext('2d');
+  var W2 = c2.width, H2 = c2.height;
+
+  var px2=0.12, py2=0.50;
+  var gkY=0.50, gkDir=1;
+  var scored=false, flash=0;
+  var t2=0;
+
+  function drawField2() {
+    for (var i=0;i<4;i++) {
+      x2.fillStyle = i%2===0 ? '#0a1a0c':'#0c1e0e';
+      x2.fillRect(i*W2/4, 0, W2/4, H2);
+    }
+    var gh=H2*0.32, gy=(H2-gh)/2;
+    x2.strokeStyle='rgba(255,255,255,0.22)'; x2.lineWidth=2;
+    x2.strokeRect(W2-10, gy, 10, gh);
+    x2.strokeStyle='rgba(255,255,255,0.07)'; x2.lineWidth=1;
+    for (var nx=W2-9; nx<=W2; nx+=4) {
+      x2.beginPath(); x2.moveTo(nx,gy); x2.lineTo(nx,gy+gh); x2.stroke();
+    }
+  }
+
+  function frame2() {
+    t2 += 0.022;
+    x2.clearRect(0,0,W2,H2);
+    drawField2();
+
+    if (!scored) {
+      px2 += 0.003;
+      py2 = 0.50 + Math.sin(t2*1.1)*0.20;
+      if (px2 > 0.90) { scored=true; flash=45; px2=0.12; py2=0.50; }
+    }
+
+    gkY += gkDir * 0.013;
+    if (gkY > 0.72 || gkY < 0.28) gkDir *= -1;
+
+    if (flash > 0) {
+      flash--;
+      x2.fillStyle = 'rgba(245,197,24,'+(flash/45*0.35)+')';
+      x2.fillRect(0,0,W2,H2);
+      x2.textAlign='center';
+      x2.font = 'bold 11px "Press Start 2P",monospace';
+      x2.fillStyle = 'rgba(0,0,0,'+(flash/45)+')';
+      x2.fillText('GOAL!', W2/2+2, H2/2+6);
+      x2.fillStyle = 'rgba(245,197,24,'+(flash/45)+')';
+      x2.fillText('GOAL!', W2/2, H2/2+4);
+    }
+
+    /* Player */
+    var ppx=Math.round(px2*W2), ppy=Math.round(py2*H2);
+    x2.fillStyle='rgba(0,0,0,0.3)'; x2.fillRect(ppx-4,ppy+5,9,2);
+    x2.fillStyle='#1a3aff'; x2.fillRect(ppx-5,ppy-5,10,10);
+    x2.fillStyle='#eee'; x2.fillRect(ppx-2,ppy-8,5,4);
+
+    /* Ball just ahead */
+    var bpx=ppx+11, bpy=ppy;
+    x2.fillStyle='#222'; x2.fillRect(bpx-4,bpy-4,8,8);
+    x2.fillStyle='#eeeecc'; x2.fillRect(bpx-3,bpy-3,6,6);
+
+    /* Keeper */
+    var gkpx=Math.round(gkX2()*W2), gkppy=Math.round(gkY*H2);
+    x2.fillStyle='rgba(0,0,0,0.3)'; x2.fillRect(gkpx-4,gkppy+5,9,2);
+    x2.fillStyle='#f0c000'; x2.fillRect(gkpx-5,gkppy-5,10,10);
+    x2.fillStyle='#7a4a00'; x2.fillRect(gkpx-2,gkppy-8,5,4);
+
+    requestAnimationFrame(frame2);
+  }
+  function gkX2() { return 0.82; }
+  frame2();
+
+
+  /* ── TOP BINS PREVIEW (c3) ── */
+  (function(){
+    var c=document.getElementById('c3'); if(!c) return;
+    var x=c.getContext('2d'), W=c.width, H=c.height, t=0;
+    var crowd=[]; for(var i=0;i<140;i++) crowd.push([Math.random()*W,Math.random()*H*0.32,['#2f8f46','#f5c518','#e9ecef','#1a3aff'][i%4]]);
+    function bez(p0,p1,p2,u){ return (1-u)*(1-u)*p0+2*(1-u)*u*p1+u*u*p2; }
+    function frame(){
+      t+=1/60; var cyc=t%3.2, u=Math.min(cyc/1.4,1);
+      var g=x.createLinearGradient(0,0,0,H); g.addColorStop(0,'#04070d'); g.addColorStop(0.38,'#0d1a2e'); g.addColorStop(0.39,'#145a26'); g.addColorStop(1,'#0e3f1b');
+      x.fillStyle=g; x.fillRect(0,0,W,H);
+      for(var i=0;i<crowd.length;i++){ x.fillStyle=crowd[i][2]; x.globalAlpha=0.55+0.45*Math.sin(t*3+i); x.fillRect(crowd[i][0],crowd[i][1],2,2); }
+      x.globalAlpha=1;
+      var gx=W*0.5, gw=W*0.34, gt=H*0.2, gb=H*0.5;
+      x.strokeStyle='rgba(255,255,255,0.18)'; x.lineWidth=1;
+      for(var n=0;n<=12;n++){ x.beginPath(); x.moveTo(gx-gw/2+n*gw/12,gt); x.lineTo(gx-gw/2+n*gw/12,gb); x.stroke(); }
+      for(var m=0;m<=4;m++){ x.beginPath(); x.moveTo(gx-gw/2,gt+m*(gb-gt)/4); x.lineTo(gx+gw/2,gt+m*(gb-gt)/4); x.stroke(); }
+      x.strokeStyle='#f4f7f9'; x.lineWidth=3; x.beginPath(); x.moveTo(gx-gw/2,gb); x.lineTo(gx-gw/2,gt); x.lineTo(gx+gw/2,gt); x.lineTo(gx+gw/2,gb); x.stroke();
+      var tx=gx-gw/2+10, ty=gt+9;
+      x.strokeStyle='rgba(255,210,63,'+(0.6+0.4*Math.sin(t*6))+')'; x.lineWidth=2; x.beginPath(); x.arc(tx,ty,7,0,6.283); x.stroke();
+      var kx=gx+(cyc>0.7?Math.min((cyc-0.7)*60,gw*0.25)*-1:0);
+      x.fillStyle='#d4ff1f'; x.fillRect(kx-4,gb-22,8,16); x.fillStyle='#111'; x.fillRect(kx-4,gb-8,8,4);
+      for(var w=0;w<3;w++){ var wx=W*0.33+w*12, wy=H*0.62; x.fillStyle='#c41e2b'; x.fillRect(wx,wy-30,10,18); x.fillStyle='#f2f2f2'; x.fillRect(wx,wy-12,10,6); x.fillStyle='#c41e2b'; x.fillRect(wx+1,wy-6,8,10); x.fillStyle='#e2b48d'; x.fillRect(wx+2,wy-37,6,6); }
+      var p0=[W*0.42,H*0.95], p1=[W*0.12,H*0.25], p2=[tx,ty];
+      x.globalCompositeOperation='lighter';
+      for(var k=0;k<18;k++){ var uu=Math.max(0,u-k*0.025); var bx=bez(p0[0],p1[0],p2[0],uu), by=bez(p0[1],p1[1],p2[1],uu);
+        x.fillStyle='rgba(255,215,80,'+(0.5*(1-k/18))+')'; x.beginPath(); x.arc(bx,by,Math.max(1,5-k*0.25),0,6.283); x.fill(); }
+      x.globalCompositeOperation='source-over';
+      var bx2=bez(p0[0],p1[0],p2[0],u), by2=bez(p0[1],p1[1],p2[1],u), br=6-u*3;
+      x.fillStyle='#fff'; x.beginPath(); x.arc(bx2,by2,br,0,6.283); x.fill();
+      if(cyc>1.4&&cyc<2.6){ var a=1-(cyc-1.4)/1.2; x.fillStyle='rgba(255,210,80,'+(a*0.25)+')'; x.fillRect(0,0,W,H);
+        x.font='14px "Press Start 2P",monospace'; x.textAlign='center'; x.fillStyle='rgba(0,0,0,'+a+')'; x.fillText('TOP BINS!',W/2+2,H*0.78+2); x.fillStyle='rgba(255,210,63,'+a+')'; x.fillText('TOP BINS!',W/2,H*0.78); }
+      requestAnimationFrame(frame);
+    }
+    frame();
+  })();
+})();
+</script>
+</body>
+</html>
